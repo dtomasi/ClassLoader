@@ -15,33 +15,33 @@
  * @copyright tomasiMEDIA 2014
  */
 
-namespace tests;
+namespace dtomasi\tests;
 
 use customNamespace\classInCustomNamespace;
+use dtomasi\UniversalClassLoader;
 
-require ('ClassLoader.php');
+require ('src/UniversalClassLoader.php');
 require ('tests/Registry.php');
 
-$cl = new \ClassLoader(false);
+$cl = new UniversalClassLoader(false);
 $cl->register();
 \Registry::set('ClassLoader',$cl);
 
-class ClassLoaderTest extends \PHPUnit_Framework_TestCase {
+class UniversalClassLoaderTest extends \PHPUnit_Framework_TestCase {
 
+    public function setUp() {
+        $_SERVER['DOCUMENT_ROOT'] = dirname(__FILE__);
+    }
+
+    public function tearDown() {
+        unset($_SERVER['DOCUMENT_ROOT']);
+    }
     /**
-     * @return bool|\ClassLoader
+     * @return bool| \dtomasi\UniversalClassLoader
      */
     public function classLoader()
     {
         return \Registry::get('ClassLoader');
-    }
-    /**
-     * Setup Tests
-     */
-    public function testRegisterNamespaceThrowsException()
-    {
-        $this->setExpectedException('Exception',"try to register a namespace, but given directory does not exist");
-        $this->classLoader()->registerNamespace('test','notExistingDir');
     }
 
     public function testRegisterNamespaceReturnTrueOnSuccess()
@@ -49,16 +49,9 @@ class ClassLoaderTest extends \PHPUnit_Framework_TestCase {
         $this->assertTrue($this->classLoader()->registerNamespace('tests','tests'));
     }
 
-    public function testRegisterClassThrowsException()
-    {
-        $strFile = "testClass.notExisting";
-        $this->setExpectedException('Exception',"File on $strFile does not exist");
-        $this->classLoader()->registerClass('test',$strFile);
-    }
-
     public function testRegisterClassReturnsTrueOnSuccess()
     {
-        $this->assertTrue($this->classLoader()->registerClass('ClassLoader','ClassLoader.php'));
+        $this->assertTrue($this->classLoader()->registerClass('UniversalClassLoader','src/UniversalClassLoader.php'));
     }
 
     public function testRegisterClass()

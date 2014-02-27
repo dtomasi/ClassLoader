@@ -1,0 +1,12 @@
+{
+    "name": "dtomasi/universal_classloader",
+    "description": "A universal Classloader with several functions to Find Classes and Caching.",
+    "minimum-stability": "dev",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Dominik Tomasi",
+            "email": "dominik.tomasi@gmail.com"
+        }
+    ]
+}

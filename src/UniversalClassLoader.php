@@ -15,7 +15,14 @@
  * @copyright tomasiMEDIA 2014
  */
 
-class ClassLoader {
+namespace dtomasi;
+
+/**
+ * Class ClassLoader
+ * @package dtomasi
+ */
+
+class UniversalClassLoader {
 
     /**
      * Caching Mode
@@ -134,7 +141,7 @@ class ClassLoader {
 
             if (!is_dir($strDirectory))
             {
-                throw new Exception("try to register a namespace, but given directory does not exist");
+                throw new \Exception("try to register a namespace, but given directory does not exist");
             }
 
             $this->namespaces[$strNamespace][] = $strDirectory;
@@ -142,7 +149,7 @@ class ClassLoader {
             // Return true on success
             return true;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
 
             echo $e->getMessage();
         }
@@ -172,7 +179,7 @@ class ClassLoader {
 
             if (!file_exists($strFile))
             {
-                throw new Exception("File on $strFile does not exist");
+                throw new \Exception("File on $strFile does not exist");
             }
 
             $this->classMap[$strClass] = $strFile;
@@ -180,7 +187,7 @@ class ClassLoader {
             // Return true on success
             return true;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
 
             echo $e->getMessage();
         }
@@ -328,8 +335,11 @@ class ClassLoader {
         } else {
             $strFileName = $strClass.$this->classExtension;
         }
-
-        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__), \RecursiveIteratorIterator::SELF_FIRST );;
+        $path = $this->getRootPath();
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
 
         /**
          * @var $dir \SplFileInfo
@@ -342,5 +352,25 @@ class ClassLoader {
             }
         }
         return false;
+    }
+
+    private function getRootPath() {
+
+        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+            $rootPath = $_SERVER['DOCUMENT_ROOT'];
+        } else {
+            $rootPath = __DIR__;
+        }
+
+        $rootPath = str_replace('//', '/', $rootPath);
+        $rootPath = str_replace('\\', '/', $rootPath);
+        $rootPath = dirname($rootPath);
+
+        if (is_link($rootPath))
+        {
+            return readlink($rootPath);
+        }
+        return $rootPath;
+
     }
 }
