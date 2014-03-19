@@ -22,25 +22,19 @@ namespace dtomasi;
  * @package dtomasi
  */
 
-class UniversalClassLoader {
+class UniversalClassLoader implements \Serializable {
 
     /**
-     * Caching Mode
-     * @var bool
+     * The Rootpath for searching by DirectoryIterator
+     * @var null|string
      */
-    private $cached;
-
-    /**
-     * The Cache-File-Name
-     * @var string
-     */
-    private $cacheFile = 'classMap.cache';
+    private $rootPath = null;
 
     /**
      * Default Class Extension
-     * @var string
+     * @var array
      */
-    private $classExtension = '.php';
+    private $classExtensions = array('php','inc');
 
     /**
      * Registered Namespaces
@@ -62,29 +56,14 @@ class UniversalClassLoader {
 
 
     /**
-     * Init ClassLoader with optional settings for Caching
-     * @param bool $loadFromCache
+     * Optionally Register Function for SplAutoload on construct
+     * @param bool $blnRegister
      */
-    public function __construct($loadFromCache = true)
+    public function __construct($blnRegister = true)
     {
-        $this->cached = $loadFromCache;
-        if ($this->cached)
-        {
-            $this->loadFromCache();
-        }
-
+        $this->register();
     }
 
-    /**
-     * Write ClassMap to File
-     */
-    public function __destruct()
-    {
-        if ($this->cached && count($this->classMap))
-        {
-            file_put_contents(__DIR__.'/'.$this->cacheFile,serialize($this->classMap));
-        }
-    }
 
     /**
      * Register SPL-Autoload-Function
@@ -96,18 +75,59 @@ class UniversalClassLoader {
     }
 
     /**
-     * Load ClassMap from Cache-File
+     * Serialize the Classloader
+     * @return string|void
      */
-    public function loadFromCache($strFile = null)
+    public function serialize()
     {
-        if ($strFile !== null)
-        {
-            $this->cacheFile = $strFile;
+        $arrSerial = array(
+            $this->rootPath,
+            $this->classExtensions,
+            $this->namespaces,
+            $this->classMap
+        );
+
+        return serialize($arrSerial);
+    }
+
+    /**
+     * Unserialize form String
+     * NOTE: this only can be done if no classes are already loaded
+     * @param string $string
+     */
+    public function unserialize($string) {
+
+        // do not overwrite if classes are loaded
+        if (!empty($this->loadedClasses)) {
+            return;
         }
 
-        if (file_exists(__DIR__.'/'.$this->cacheFile))
-        {
-            $this->classMap = unserialize(file_get_contents(__DIR__.'/'.$this->cacheFile));
+        $arrSerial = @unserialize($string);
+
+        if (is_array($arrSerial) && !empty($arrSerial)) {
+            $this->rootPath = array_shift($arrSerial);
+            $this->classExtensions = array_shift($arrSerial);
+            $this->namespaces = array_shift($arrSerial);
+            $this->classMap = array_shift($arrSerial);
+        }
+
+    }
+
+    /**
+     * Add a accepted Class-Extension
+     * @param $strExtension
+     */
+    public function addAcceptedExtension($strExtension) {
+        array_push($this->classExtensions,$strExtension);
+    }
+
+    /**
+     * Set the Rootpath
+     * @param $strPath
+     */
+    public function setRootPath($strPath) {
+        if (is_dir($strPath)) {
+            $this->rootPath = $strPath;
         }
     }
 
@@ -239,14 +259,14 @@ class UniversalClassLoader {
             return $file;
         }
 
-        // try to get Filepath by PSR-0 Path
-        if ($file = $this->getByPSR0($strClass))
+        // try to find Class in Registered Namespaces
+        if ($file = $this->getFromRegisteredNamespace($strClass))
         {
             return $this->classMap[$strClass] = $file;
         }
 
-        // try to find Class in Registered Namespaces
-        if ($file = $this->getFromRegisteredNamespace($strClass))
+        // try to get Filepath by PSR-0 Path
+        if ($file = $this->getByPSR0($strClass))
         {
             return $this->classMap[$strClass] = $file;
         }
@@ -284,10 +304,13 @@ class UniversalClassLoader {
      */
     private function getByPSR0($strClass)
     {
-        $file = implode(DIRECTORY_SEPARATOR,explode('\\',$strClass)).$this->classExtension;
-        if (file_exists($file))
-        {
-            return $this->classMap[$strClass] = $file;
+        foreach ($this->classExtensions as $extension) {
+            $file = implode(DIRECTORY_SEPARATOR,explode('\\',$strClass)).'.'.$extension;
+
+                if (file_exists($file))
+                {
+                    return $this->classMap[$strClass] = $file;
+                }
         }
         return false;
     }
@@ -302,25 +325,29 @@ class UniversalClassLoader {
         if (false !== $separatorPosition = strpos($strClass, '\\'))
         {
             $namespace = substr($strClass, 0, $separatorPosition);
+
+            // exit if namespace is not in array of registered namespaces
+            if (!array_key_exists($namespace,$this->namespaces)) {
+                return false;
+            }
+
             $className = substr($strClass, $separatorPosition + 1);
 
-            foreach ($this->namespaces as $regNamespace => $dirs) {
+            // if Classname has a sub-namespace
+            if (strpos($className,'\\') !== false) {
+                $className = str_replace('\\',DIRECTORY_SEPARATOR,$className);
+            }
 
-                if (strpos($namespace, $regNamespace) !== 0) {
-                    continue;
-                }
+            // loop through registered dirs
+            foreach ($this->namespaces[$namespace] as $dir) {
 
-                // if Classname has a sub-namespace
-                if (strpos($className,'\\') !== false) {
-                    $className = str_replace('\\',DIRECTORY_SEPARATOR,$className);
-                }
-
-                foreach ($dirs as $dir) {
-                    $file = $dir.DIRECTORY_SEPARATOR.$className.$this->classExtension;
+                foreach ($this->classExtensions as $extension) {
+                    $file = $dir.DIRECTORY_SEPARATOR.$className.'.'.$extension;
                     if (is_file($file)) {
                         return $this->classMap[$strClass] = $file;
                     }
                 }
+
             }
         }
         return false;
@@ -336,9 +363,9 @@ class UniversalClassLoader {
         if (false !== $separatorPosition = strrpos($strClass, '\\'))
         {
             $arrFrag = explode('\\',$strClass);
-            $strFileName = end($arrFrag).$this->classExtension;
+            $strFileName = end($arrFrag);
         } else {
-            $strFileName = $strClass.$this->classExtension;
+            $strFileName = $strClass;
         }
         $path = $this->getRootPath();
         $it = new \RecursiveIteratorIterator(
@@ -351,7 +378,8 @@ class UniversalClassLoader {
          */
         foreach ($it as $dir)
         {
-            if ($dir->getFilename() == $strFileName)
+            $filename = $dir->getBasename('.'.$dir->getExtension());
+            if ($filename == $strFileName && in_array($dir->getExtension(),$this->classExtensions))
             {
                 return $dir->getPathname();
             }
@@ -359,7 +387,15 @@ class UniversalClassLoader {
         return false;
     }
 
+    /**
+     * get RootPath or try to get from $_SERVER['DOCUMENT_ROOT']
+     * @return null|string
+     */
     private function getRootPath() {
+
+        if ($this->rootPath !== null) {
+            return $this->rootPath;
+        }
 
         if (isset($_SERVER['DOCUMENT_ROOT'])) {
             $rootPath = $_SERVER['DOCUMENT_ROOT'];
@@ -375,7 +411,7 @@ class UniversalClassLoader {
         {
             return readlink($rootPath);
         }
-        return $rootPath;
+        return $this->rootPath = $rootPath;
 
     }
 }

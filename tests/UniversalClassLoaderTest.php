@@ -47,7 +47,7 @@ class UniversalClassLoaderTest extends \PHPUnit_Framework_TestCase {
 
     public function testRegisterNamespaceReturnTrueOnSuccess()
     {
-        $this->assertTrue($this->classLoader()->registerNamespace('tests','tests'));
+        $this->assertTrue($this->classLoader()->registerNamespace('testnamespace','tests'));
     }
 
     public function testRegisterClassReturnsTrueOnSuccess()
