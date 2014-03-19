@@ -8,5 +8,13 @@
             "name": "Dominik Tomasi",
             "email": "dominik.tomasi@gmail.com"
         }
-    ]
+    ],
+    "autoload": {
+        "psr-0": {
+            "dtomasi\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=5.3.3"
+    }
 }
