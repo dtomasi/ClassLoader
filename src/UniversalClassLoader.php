@@ -299,7 +299,7 @@ class UniversalClassLoader {
      */
     private function getFromRegisteredNamespace($strClass)
     {
-        if (false !== $separatorPosition = strrpos($strClass, '\\'))
+        if (false !== $separatorPosition = strpos($strClass, '\\'))
         {
             $namespace = substr($strClass, 0, $separatorPosition);
             $className = substr($strClass, $separatorPosition + 1);
@@ -308,6 +308,11 @@ class UniversalClassLoader {
 
                 if (strpos($namespace, $regNamespace) !== 0) {
                     continue;
+                }
+
+                // if Classname has a sub-namespace
+                if (strpos($className,'\\') !== false) {
+                    $className = str_replace('\\',DIRECTORY_SEPARATOR,$className);
                 }
 
                 foreach ($dirs as $dir) {

@@ -18,6 +18,7 @@
 namespace dtomasi\tests;
 
 use customNamespace\classInCustomNamespace;
+use customNamespace\subfolderOfRegisteredNamespace\subfolderClass;
 use dtomasi\UniversalClassLoader;
 
 require ('src/UniversalClassLoader.php');
@@ -71,7 +72,11 @@ class UniversalClassLoaderTest extends \PHPUnit_Framework_TestCase {
     {
         $this->classLoader()->registerNamespace('customNamespace','tests/customNamespace');
         $class = new classInCustomNamespace();
+
         $this->assertInstanceOf('\customNamespace\classInCustomNamespace',$class);
+
+        $classInSubfolder = new subfolderClass();
+        $this->assertInstanceOf('\customNamespace\subfolderOfRegisteredNamespace\subfolderClass',$classInSubfolder);
     }
 
     public function testFindClassInFileSystem()
